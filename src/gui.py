@@ -32,6 +32,7 @@ class FlowchartEditor(tk.Tk):
         ttk.Button(toolbar, text="Open", command=self._open_project).pack(side=tk.LEFT)
         ttk.Button(toolbar, text="Save", command=self._save_project).pack(side=tk.LEFT)
         ttk.Button(toolbar, text="Validate", command=self._validate_project).pack(side=tk.LEFT)
+        ttk.Button(toolbar, text="Auto layout", command=self._auto_layout).pack(side=tk.LEFT)
 
         main = ttk.Frame(self)
         main.pack(fill=tk.BOTH, expand=True)
@@ -389,6 +390,19 @@ class FlowchartEditor(tk.Tk):
         x = 80 + (index % 4) * 180
         y = 60 + (index // 4) * 120
         node["pos"] = {"x": x, "y": y}
+
+    def _auto_layout(self) -> None:
+        chart = self._current_flowchart()
+        if not chart:
+            messagebox.showerror("Layout", "Select a flowchart first")
+            return
+        for node in chart["nodes"]:
+            node.pop("pos", None)
+        for index, node in enumerate(chart["nodes"]):
+            x = 80 + (index % 4) * 180
+            y = 60 + (index // 4) * 120
+            node["pos"] = {"x": x, "y": y}
+        self._render_canvas()
 
     def _ensure_node_positions(self, chart: Dict) -> None:
         for node in chart["nodes"]:
