@@ -1,0 +1,16 @@
+NODE_TYPES = {
+    "START",
+    "END",
+    "ASSIGN_VAR_VAR",
+    "ASSIGN_VAR_CONST",
+    "INPUT",
+    "PRINT",
+    "BRANCH",
+}
+
+BRANCH_OPS = {"==", "<"}
+
+MAX_FLOWCHARTS = 100
+MAX_NODES = 100
+MAX_VARIABLES = 100
+MAX_CONST = 2 ** 31 - 1

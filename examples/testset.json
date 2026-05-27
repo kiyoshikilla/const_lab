@@ -1,0 +1,12 @@
+{
+  "tests": [
+    {
+      "id": "basic",
+      "input": "5",
+      "expected": [
+        "[Thread T2] PRINT: 1\n[Thread T1] PRINT: 5",
+        "[Thread T1] PRINT: 5\n[Thread T2] PRINT: 1"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "flowcharts": [
+    {
+      "id": "T1",
+      "variables": ["X", "Y"],
+      "nodes": [
+        {"id": "n1", "type": "START"},
+        {"id": "n2", "type": "INPUT", "params": {"dst": "X"}},
+        {"id": "n3", "type": "ASSIGN_VAR_CONST", "params": {"dst": "Y", "value": 5}},
+        {
+          "id": "n4",
+          "type": "BRANCH",
+          "params": {"op": "<", "left": "X", "right": 5}
+        },
+        {"id": "n5", "type": "PRINT", "params": {"src": "Y"}},
+        {"id": "n6", "type": "ASSIGN_VAR_VAR", "params": {"dst": "Y", "src": "X"}},
+        {"id": "n7", "type": "PRINT", "params": {"src": "Y"}},
+        {"id": "n8", "type": "END"}
+      ],
+      "edges": [
+        {"from": "n1", "to": "n2"},
+        {"from": "n2", "to": "n3"},
+        {"from": "n3", "to": "n4"},
+        {"from": "n4", "to": "n5", "label": "true"},
+        {"from": "n4", "to": "n6", "label": "false"},
+        {"from": "n5", "to": "n8"},
+        {"from": "n6", "to": "n7"},
+        {"from": "n7", "to": "n8"}
+      ]
+    },
+    {
+      "id": "T2",
+      "variables": ["Z"],
+      "nodes": [
+        {"id": "m1", "type": "START"},
+        {"id": "m2", "type": "ASSIGN_VAR_CONST", "params": {"dst": "Z", "value": 1}},
+        {"id": "m3", "type": "PRINT", "params": {"src": "Z"}},
+        {"id": "m4", "type": "END"}
+      ],
+      "edges": [
+        {"from": "m1", "to": "m2"},
+        {"from": "m2", "to": "m3"},
+        {"from": "m3", "to": "m4"}
+      ]
+    }
+  ]
+}
