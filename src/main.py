@@ -48,7 +48,10 @@ def main(argv=None) -> int:
         print("--emit requires --run PATH", file=sys.stderr)
         return 2
 
-    run_gui()
+    try:
+        run_gui()
+    except KeyboardInterrupt:
+        return 130
     return 0
 
 

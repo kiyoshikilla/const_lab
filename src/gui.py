@@ -29,7 +29,7 @@ class FlowchartEditor(tk.Tk):
         toolbar = ttk.Frame(self)
         toolbar.pack(side=tk.TOP, fill=tk.X)
 
-        ttk.Button(toolbar, text="New", command=self._new_project).pack(side=tk.LEFT)
+        ttk.Button(toolbar, text="New flowchart", command=self._new_flowchart).pack(side=tk.LEFT)
         ttk.Button(toolbar, text="Open", command=self._open_project).pack(side=tk.LEFT)
         ttk.Button(toolbar, text="Save", command=self._save_project).pack(side=tk.LEFT)
         ttk.Button(toolbar, text="Validate", command=self._validate_project).pack(side=tk.LEFT)
@@ -48,7 +48,6 @@ class FlowchartEditor(tk.Tk):
 
         btns = ttk.Frame(left)
         btns.pack(fill=tk.X)
-        ttk.Button(btns, text="Add", command=self._add_flowchart).pack(side=tk.LEFT)
         ttk.Button(btns, text="Remove", command=self._remove_flowchart).pack(side=tk.LEFT)
 
         center = ttk.Frame(main)
@@ -135,16 +134,24 @@ class FlowchartEditor(tk.Tk):
         edge_form = ttk.Frame(edges_box)
         edge_form.pack(side=tk.LEFT, fill=tk.Y, padx=8)
         ttk.Label(edge_form, text="From").pack(anchor=tk.W)
-        self.edge_from_entry = ttk.Entry(edge_form)
-        self.edge_from_entry.pack(fill=tk.X)
+        self.edge_from_var = tk.StringVar()
+        self.edge_from_combo = ttk.Combobox(edge_form, textvariable=self.edge_from_var, values=[], state="readonly")
+        self.edge_from_combo.pack(fill=tk.X)
 
         ttk.Label(edge_form, text="To").pack(anchor=tk.W)
-        self.edge_to_entry = ttk.Entry(edge_form)
-        self.edge_to_entry.pack(fill=tk.X)
+        self.edge_to_var = tk.StringVar()
+        self.edge_to_combo = ttk.Combobox(edge_form, textvariable=self.edge_to_var, values=[], state="readonly")
+        self.edge_to_combo.pack(fill=tk.X)
 
-        ttk.Label(edge_form, text="Label (true/false or empty)").pack(anchor=tk.W)
-        self.edge_label_entry = ttk.Entry(edge_form)
-        self.edge_label_entry.pack(fill=tk.X)
+        ttk.Label(edge_form, text="Label").pack(anchor=tk.W)
+        self.edge_label_var = tk.StringVar()
+        self.edge_label_combo = ttk.Combobox(
+            edge_form,
+            textvariable=self.edge_label_var,
+            values=("empty", "true", "false"),
+            state="readonly",
+        )
+        self.edge_label_combo.pack(fill=tk.X)
 
         ttk.Button(edge_form, text="Add", command=self._add_edge).pack(fill=tk.X, pady=4)
         ttk.Button(edge_form, text="Remove", command=self._remove_edge).pack(fill=tk.X)
@@ -189,6 +196,7 @@ class FlowchartEditor(tk.Tk):
         if not chart:
             return
         self._sync_var_options(chart)
+        self._sync_edge_options(chart)
         self._ensure_node_positions(chart)
         for node in chart["nodes"]:
             self.nodes_list.insert(tk.END, f"{node['id']} ({node['type']})")
@@ -211,11 +219,15 @@ class FlowchartEditor(tk.Tk):
         self._selected_flowchart_idx = None
         self._selected_node_id = None
         self.vars_entry.delete(0, tk.END)
+        self.edge_from_var.set("")
+        self.edge_to_var.set("")
+        self.edge_label_var.set("")
         self._refresh_flowcharts()
         self.nodes_list.delete(0, tk.END)
         self.edges_list.delete(0, tk.END)
         self._render_canvas()
         self._clear_node_form()
+        self._sync_edge_options({"nodes": []})
 
     def _open_project(self) -> None:
         path = filedialog.askopenfilename(filetypes=[("JSON", "*.json")])
@@ -236,6 +248,7 @@ class FlowchartEditor(tk.Tk):
             self._refresh_edges()
         else:
             self._selected_flowchart_idx = None
+            self._sync_edge_options({"nodes": []})
         self._render_canvas()
 
     def _save_project(self) -> None:
@@ -287,6 +300,9 @@ class FlowchartEditor(tk.Tk):
         self._refresh_edges()
         self._render_canvas()
 
+    def _new_flowchart(self) -> None:
+        self._add_flowchart()
+
     def _remove_flowchart(self) -> None:
         index = self.flowcharts_list.curselection()
         if not index:
@@ -302,6 +318,7 @@ class FlowchartEditor(tk.Tk):
             self.vars_entry.delete(0, tk.END)
             self._selected_flowchart_idx = None
             self._clear_node_form()
+            self._sync_edge_options({"nodes": []})
         self.nodes_list.delete(0, tk.END)
         self.edges_list.delete(0, tk.END)
         self._render_canvas()
@@ -380,9 +397,10 @@ class FlowchartEditor(tk.Tk):
             messagebox.showerror("Edge", "Select a flowchart first")
             return
         self._sync_vars_to_chart()
-        src = self.edge_from_entry.get().strip()
-        dst = self.edge_to_entry.get().strip()
-        label = self.edge_label_entry.get().strip() or None
+        src = self.edge_from_var.get().strip()
+        dst = self.edge_to_var.get().strip()
+        label_raw = self.edge_label_var.get().strip()
+        label = None if label_raw in {"", "empty"} else label_raw
 
         if not src or not dst:
             messagebox.showerror("Edge", "From and To are required")
@@ -594,6 +612,17 @@ class FlowchartEditor(tk.Tk):
             self.param_left_combo,
         ):
             combo["values"] = variables
+
+    def _sync_edge_options(self, chart: Dict) -> None:
+        node_ids = [node.get("id", "") for node in chart.get("nodes", []) if node.get("id")]
+        self.edge_from_combo["values"] = node_ids
+        self.edge_to_combo["values"] = node_ids
+        if self.edge_from_var.get() not in node_ids:
+            self.edge_from_var.set("")
+        if self.edge_to_var.get() not in node_ids:
+            self.edge_to_var.set("")
+        if self.edge_label_var.get() not in {"", "empty", "true", "false"}:
+            self.edge_label_var.set("")
 
     def _clear_node_form(self) -> None:
         self.node_id_entry.delete(0, tk.END)
