@@ -1,0 +1,122 @@
+{
+  "flowcharts": [
+    {
+      "id": "T3",
+      "variables": [
+        "PIN",
+        "IS_VALID"
+      ],
+      "nodes": [
+        {
+          "id": "n1",
+          "type": "START",
+          "params": {},
+          "pos": {
+            "x": 80,
+            "y": 60
+          }
+        },
+        {
+          "id": "n2",
+          "type": "INPUT",
+          "params": {
+            "dst": "PIN"
+          },
+          "pos": {
+            "x": 260,
+            "y": 60
+          }
+        },
+        {
+          "id": "n3",
+          "type": "BRANCH",
+          "params": {
+            "left": "PIN",
+            "op": "==",
+            "right": 1234
+          },
+          "pos": {
+            "x": 440,
+            "y": 60
+          }
+        },
+        {
+          "id": "n4",
+          "type": "ASSIGN_VAR_CONST",
+          "params": {
+            "dst": "PIN",
+            "value": 1
+          },
+          "pos": {
+            "x": 620,
+            "y": 60
+          }
+        },
+        {
+          "id": "n5",
+          "type": "ASSIGN_VAR_CONST",
+          "params": {
+            "dst": "PIN",
+            "value": 0
+          },
+          "pos": {
+            "x": 80,
+            "y": 180
+          }
+        },
+        {
+          "id": "n6",
+          "type": "PRINT",
+          "params": {
+            "src": "IS_VALID"
+          },
+          "pos": {
+            "x": 260,
+            "y": 180
+          }
+        },
+        {
+          "id": "n7",
+          "type": "END",
+          "params": {},
+          "pos": {
+            "x": 440,
+            "y": 180
+          }
+        }
+      ],
+      "edges": [
+        {
+          "from": "n1",
+          "to": "n2"
+        },
+        {
+          "from": "n2",
+          "to": "n3"
+        },
+        {
+          "from": "n3",
+          "to": "n4",
+          "label": "true"
+        },
+        {
+          "from": "n5",
+          "to": "n6"
+        },
+        {
+          "from": "n6",
+          "to": "n7"
+        },
+        {
+          "from": "n4",
+          "to": "n5"
+        },
+        {
+          "from": "n3",
+          "to": "n5",
+          "label": "false"
+        }
+      ]
+    }
+  ]
+}

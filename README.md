@@ -1,52 +1,65 @@
-# Flowchart Threads (Python + Tkinter)
+# Flowchart Threads
 
-A minimal editor and runtime for multi-threaded flowchart programs.
+Проєкт для побудови, перевірки, запуску та автоматичної трансляції набору блок-схем у багатопотокову Python-програму.
 
-## Features
-- Create/edit flowcharts (nodes + edges) in a Tkinter GUI
-- Canvas diagram view with draggable nodes (positions saved in JSON)
-- Save/load a JSON project file
-- Validate structure and constraints
-- Run N flowcharts as N threads with shared variables
+Підтримуються:
+- графічний редактор блок-схем на Tkinter;
+- до 100 схем у проєкті;
+- до 100 вузлів у кожній схемі;
+- до 100 спільних змінних у схемі;
+- трансляція в Python-код;
+- автоматичне тестування недетермінованих виконань.
 
-## Quick Start
+## Що вміє програма
+- створювати та редагувати блок-схеми;
+- зберігати та відкривати JSON-проєкти;
+- перевіряти коректність схем перед запуском і генерацією;
+- виконувати N схем як N потоків зі спільними змінними;
+- генерувати окремий Python-файл із тієї ж логікою виконання;
+- перебирати різні розклади виконання для тестування.
 
-Run the GUI:
+## Структура проєкту
+- `src/main.py` — головна точка входу CLI/GUI;
+- `src/gui.py` — редактор блок-схем;
+- `src/runtime.py` — багатопотоковий рантайм;
+- `src/codegen.py` — генерація Python-коду;
+- `src/tester.py` — автоматичне тестування;
+- `src/validator.py` — перевірка JSON-проєкту;
+- `examples/flowcharts.json` — приклад проєкту;
+- `examples/testset.json` — приклад тестів.
 
+## Швидкий старт
+
+Запустити GUI:
 ```powershell
 python -m src.main
 ```
 
-Run the runtime on a JSON file:
-
+Запустити проєкт із JSON-файлу:
 ```powershell
 python -m src.main --run examples/flowcharts.json
 ```
 
-Generate Python source code from a JSON file:
-
+Згенерувати Python-код із JSON:
 ```powershell
 python -m src.main --run examples/flowcharts.json --emit generated_program.py
 ```
 
-Run test set on a flowcharts JSON:
-
+Запустити автоматичні тести:
 ```powershell
 python -m src.main --run examples/flowcharts.json --test examples/testset.json --max-steps 100
 ```
 
-Report progress for executions with <= K steps:
-
+Показувати прогрес для виконань з кількістю кроків не більше `K`:
 ```powershell
 python -m src.main --run examples/flowcharts.json --test examples/testset.json --max-steps 100 --k 10
 ```
 
-Stop test enumeration with Ctrl+C to enter K (1..20) and get progress for executions
-with <= K operations.
+Щоб зупинити перебирання виконань під час тесту, натисніть `Ctrl+C`. Після цього програма попросить ввести `K` у межах `1..20`.
 
-## JSON Format (flowcharts.json)
+## Формат JSON-проєкту
 
-Top-level shape:
+Кореневий об'єкт має вигляд:
 
 ```json
 {
@@ -68,29 +81,33 @@ Top-level shape:
 }
 ```
 
-Node types and params:
-- START, END (no params)
-- ASSIGN_VAR_VAR: {"dst": "V1", "src": "V2"}
-- ASSIGN_VAR_CONST: {"dst": "V", "value": 123}
-- INPUT: {"dst": "V"}
-- PRINT: {"src": "V"}
-- BRANCH: {"op": "=="|"<", "left": "V", "right": 123}
-  - Requires two outgoing edges with labels "true" and "false"
+Типи вузлів:
+- `START`, `END` — без параметрів;
+- `ASSIGN_VAR_VAR` — `{"dst": "V1", "src": "V2"}`;
+- `ASSIGN_VAR_CONST` — `{"dst": "V", "value": 123}`;
+- `INPUT` — `{"dst": "V"}`;
+- `PRINT` — `{"src": "V"}`;
+- `BRANCH` — `{"op": "=="|"<", "left": "V", "right": 123}`.
 
-Optional node layout fields:
-- Each node may include a "pos" object: {"x": 100, "y": 80}
+Правила для переходів:
+- `START`, `ASSIGN_VAR_VAR`, `ASSIGN_VAR_CONST`, `INPUT`, `PRINT` мають мати рівно одне вихідне ребро;
+- `BRANCH` має мати рівно два вихідні ребра з мітками `true` і `false`;
+- `END` не має мати вихідних ребер.
 
-Constraints:
-- 1 <= number of flowcharts <= 100
-- Each flowchart has up to 100 nodes
-- Up to 100 shared variables per flowchart
-- Constants: 0..2^31-1
+Додатково дозволено вказувати позицію вузла:
+```json
+{"pos": {"x": 100, "y": 80}}
+```
 
-## Notes
-- Shared variables are 32-bit integers; updates are synchronized with a lock.
-- INPUT is blocking per thread and uses a global input lock to avoid interleaved prompts.
+Обмеження:
+- 1 ≤ кількість схем ≤ 100;
+- 1 ≤ кількість вузлів у схемі ≤ 100;
+- 1 ≤ кількість змінних у схемі ≤ 100;
+- константи: від `0` до `2^31 - 1`.
 
-## Test Set Format (testset.json)
+## Формат тестів
+
+Файл `testset.json` має вигляд:
 
 ```json
 {
@@ -104,7 +121,12 @@ Constraints:
 }
 ```
 
-Notes:
-- `input` is whitespace-separated integers for INPUT operations.
-- `expected` can be a string or a list of strings for nondeterministic outputs.
+Пояснення:
+- `input` — це послідовність цілих чисел через пробіли або переноси рядків для `INPUT`;
+- `expected` може бути рядком або списком рядків для недетермінованих результатів.
+
+## Примітки
+- Спільні змінні зберігаються як 32-бітні цілі числа і захищені блокуванням.
+- Ввід у різних потоках синхронізований, щоб не змішувати запити `INPUT`.
+- Згенерований файл можна запускати окремо як звичайну Python-програму.
 

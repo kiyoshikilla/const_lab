@@ -1,0 +1,48 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Test and tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.nox/
+.tox/
+.hypothesis/
+.coverage
+.coverage.*
+htmlcov/
+pycache/
+
+
+# Build / distribution outputs
+build/
+dist/
+site/
+*.egg-info/
+*.egg
+
+# Generated helpers and outputs
+generated_program*.py
+check_generated.py
+
+# Editor / IDE files
+.vscode/
+.idea/
+*.code-workspace
+
+# OS junk
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Logs
+*.log
