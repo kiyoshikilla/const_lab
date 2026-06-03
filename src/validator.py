@@ -122,6 +122,32 @@ def _validate_flowchart(chart: Dict[str, Any], errors: List[str]) -> None:
         if dst not in node_ids:
             errors.append(f"flowchart {chart_id}: edge to invalid node {dst}")
 
+    # Check outgoing edge counts per node according to node type
+    adj_counts = {}
+    for edge in edges:
+        if not isinstance(edge, dict):
+            continue
+        src = edge.get("from")
+        adj_counts[src] = adj_counts.get(src, 0) + 1
+
+    for node in nodes:
+        if not isinstance(node, dict):
+            continue
+        nid = node.get("id")
+        ntype = node.get("type")
+        count = adj_counts.get(nid, 0)
+        if ntype in {"START", "ASSIGN_VAR_VAR", "ASSIGN_VAR_CONST", "INPUT", "PRINT"}:
+            if count != 1:
+                errors.append(
+                    f"flowchart {chart_id}: node {nid} of type {ntype} must have exactly one outgoing edge"
+                )
+        elif ntype == "BRANCH":
+            if count != 2:
+                errors.append(f"flowchart {chart_id}: BRANCH {nid} must have two outgoing edges labeled true/false")
+        elif ntype == "END":
+            if count != 0:
+                errors.append(f"flowchart {chart_id}: END {nid} must have no outgoing edges")
+
     # Branch nodes must have true/false edges
     branch_ids = [n.get("id") for n in nodes if isinstance(n, dict) and n.get("type") == "BRANCH"]
     edge_labels = {}
