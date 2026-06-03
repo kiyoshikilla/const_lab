@@ -13,7 +13,7 @@ def generate_python(data: Dict[str, Any]) -> str:
     data_literal = repr(data_json)
 
     return f"""# Auto-generated from flowcharts.json
-# Do not edit manually unless you know what you are doing.
+# 
 
 import json
 import threading

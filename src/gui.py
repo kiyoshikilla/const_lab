@@ -1,4 +1,3 @@
-import json
 import tkinter as tk
 from typing import Dict, Optional, Tuple
 from tkinter import filedialog, messagebox, ttk
@@ -11,7 +10,7 @@ class FlowchartEditor(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
         self.title("Flowchart Threads Editor")
-        self.geometry("1000x600")
+        self.geometry("1100x650")
 
         self.data = {
             "flowcharts": [],
@@ -21,6 +20,8 @@ class FlowchartEditor(tk.Tk):
         self._canvas_edges = []
         self._drag_node_id: Optional[str] = None
         self._drag_offset = (0, 0)
+        self._selected_flowchart_idx: Optional[int] = None
+        self._selected_node_id: Optional[str] = None
 
         self._build_ui()
 
@@ -41,7 +42,7 @@ class FlowchartEditor(tk.Tk):
         left.pack(side=tk.LEFT, fill=tk.Y)
 
         ttk.Label(left, text="Flowcharts").pack(anchor=tk.W)
-        self.flowcharts_list = tk.Listbox(left, width=25)
+        self.flowcharts_list = tk.Listbox(left, width=22)
         self.flowcharts_list.pack(fill=tk.Y, expand=True)
         self.flowcharts_list.bind("<<ListboxSelect>>", self._on_select_flowchart)
 
@@ -62,6 +63,7 @@ class FlowchartEditor(tk.Tk):
         nodes_box.pack(fill=tk.BOTH, expand=True)
         self.nodes_list = tk.Listbox(nodes_box)
         self.nodes_list.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.nodes_list.bind("<<ListboxSelect>>", self._on_select_node)
 
         node_form = ttk.Frame(nodes_box)
         node_form.pack(side=tk.LEFT, fill=tk.Y, padx=8)
@@ -72,13 +74,53 @@ class FlowchartEditor(tk.Tk):
         ttk.Label(node_form, text="Type").pack(anchor=tk.W)
         self.node_type_var = tk.StringVar()
         self.node_type_combo = ttk.Combobox(
-            node_form, textvariable=self.node_type_var, values=sorted(NODE_TYPES)
+            node_form, textvariable=self.node_type_var, values=sorted(NODE_TYPES), state="readonly"
         )
         self.node_type_combo.pack(fill=tk.X)
+        self.node_type_combo.bind("<<ComboboxSelected>>", self._on_node_type_change)
 
-        ttk.Label(node_form, text="Params (JSON)").pack(anchor=tk.W)
-        self.node_params_entry = ttk.Entry(node_form)
-        self.node_params_entry.pack(fill=tk.X)
+        params_box = ttk.LabelFrame(node_form, text="Parameters")
+        params_box.pack(fill=tk.X, pady=6)
+
+        self.param_dst_label = ttk.Label(params_box, text="dst")
+        self.param_dst_label.grid(row=0, column=0, sticky=tk.W)
+        self.param_dst_var = tk.StringVar()
+        self.param_dst_combo = ttk.Combobox(params_box, textvariable=self.param_dst_var, values=[])
+        self.param_dst_combo.grid(row=0, column=1, sticky=tk.EW, padx=4, pady=2)
+
+        self.param_src_label = ttk.Label(params_box, text="src")
+        self.param_src_label.grid(row=1, column=0, sticky=tk.W)
+        self.param_src_var = tk.StringVar()
+        self.param_src_combo = ttk.Combobox(params_box, textvariable=self.param_src_var, values=[])
+        self.param_src_combo.grid(row=1, column=1, sticky=tk.EW, padx=4, pady=2)
+
+        self.param_const_label = ttk.Label(params_box, text="const")
+        self.param_const_label.grid(row=2, column=0, sticky=tk.W)
+        self.param_const_var = tk.StringVar()
+        self.param_const_entry = ttk.Entry(params_box, textvariable=self.param_const_var)
+        self.param_const_entry.grid(row=2, column=1, sticky=tk.EW, padx=4, pady=2)
+
+        self.param_op_label = ttk.Label(params_box, text="op")
+        self.param_op_label.grid(row=3, column=0, sticky=tk.W)
+        self.param_op_var = tk.StringVar()
+        self.param_op_combo = ttk.Combobox(
+            params_box, textvariable=self.param_op_var, values=sorted(BRANCH_OPS), state="readonly"
+        )
+        self.param_op_combo.grid(row=3, column=1, sticky=tk.EW, padx=4, pady=2)
+
+        self.param_left_label = ttk.Label(params_box, text="left")
+        self.param_left_label.grid(row=4, column=0, sticky=tk.W)
+        self.param_left_var = tk.StringVar()
+        self.param_left_combo = ttk.Combobox(params_box, textvariable=self.param_left_var, values=[])
+        self.param_left_combo.grid(row=4, column=1, sticky=tk.EW, padx=4, pady=2)
+
+        self.param_right_label = ttk.Label(params_box, text="right")
+        self.param_right_label.grid(row=5, column=0, sticky=tk.W)
+        self.param_right_var = tk.StringVar()
+        self.param_right_entry = ttk.Entry(params_box, textvariable=self.param_right_var)
+        self.param_right_entry.grid(row=5, column=1, sticky=tk.EW, padx=4, pady=2)
+
+        params_box.columnconfigure(1, weight=1)
 
         ttk.Button(node_form, text="Add/Update", command=self._add_update_node).pack(
             fill=tk.X, pady=4
@@ -120,9 +162,13 @@ class FlowchartEditor(tk.Tk):
 
     def _current_flowchart(self):
         index = self.flowcharts_list.curselection()
-        if not index:
+        if index:
+            self._selected_flowchart_idx = index[0]
+        if self._selected_flowchart_idx is None:
             return None
-        return self.data["flowcharts"][index[0]]
+        if self._selected_flowchart_idx >= len(self.data["flowcharts"]):
+            return None
+        return self.data["flowcharts"][self._selected_flowchart_idx]
 
     def _select_flowchart_index(self, index: int) -> None:
         if index < 0 or index >= len(self.data["flowcharts"]):
@@ -130,6 +176,7 @@ class FlowchartEditor(tk.Tk):
         self.flowcharts_list.selection_clear(0, tk.END)
         self.flowcharts_list.selection_set(index)
         self.flowcharts_list.see(index)
+        self._selected_flowchart_idx = index
 
     def _refresh_flowcharts(self) -> None:
         self.flowcharts_list.delete(0, tk.END)
@@ -141,10 +188,12 @@ class FlowchartEditor(tk.Tk):
         chart = self._current_flowchart()
         if not chart:
             return
+        self._sync_var_options(chart)
         self._ensure_node_positions(chart)
         for node in chart["nodes"]:
             self.nodes_list.insert(tk.END, f"{node['id']} ({node['type']})")
         self._render_canvas()
+        self._reselect_node()
 
     def _refresh_edges(self) -> None:
         self.edges_list.delete(0, tk.END)
@@ -159,11 +208,14 @@ class FlowchartEditor(tk.Tk):
 
     def _new_project(self) -> None:
         self.data = {"flowcharts": []}
+        self._selected_flowchart_idx = None
+        self._selected_node_id = None
         self.vars_entry.delete(0, tk.END)
         self._refresh_flowcharts()
         self.nodes_list.delete(0, tk.END)
         self.edges_list.delete(0, tk.END)
         self._render_canvas()
+        self._clear_node_form()
 
     def _open_project(self) -> None:
         path = filedialog.askopenfilename(filetypes=[("JSON", "*.json")])
@@ -182,6 +234,8 @@ class FlowchartEditor(tk.Tk):
             self._sync_vars_from_chart(self.data["flowcharts"][0])
             self._refresh_nodes()
             self._refresh_edges()
+        else:
+            self._selected_flowchart_idx = None
         self._render_canvas()
 
     def _save_project(self) -> None:
@@ -212,10 +266,12 @@ class FlowchartEditor(tk.Tk):
             chart["variables"] = vars_list
         else:
             chart["variables"] = []
+        self._sync_var_options(chart)
 
     def _sync_vars_from_chart(self, chart: Dict) -> None:
         self.vars_entry.delete(0, tk.END)
         self.vars_entry.insert(0, ", ".join(chart.get("variables", [])))
+        self._sync_var_options(chart)
 
     def _add_flowchart(self) -> None:
         if len(self.data["flowcharts"]) >= MAX_FLOWCHARTS:
@@ -244,6 +300,8 @@ class FlowchartEditor(tk.Tk):
             self._refresh_edges()
         else:
             self.vars_entry.delete(0, tk.END)
+            self._selected_flowchart_idx = None
+            self._clear_node_form()
         self.nodes_list.delete(0, tk.END)
         self.edges_list.delete(0, tk.END)
         self._render_canvas()
@@ -267,19 +325,16 @@ class FlowchartEditor(tk.Tk):
             return
         node_id = self.node_id_entry.get().strip()
         node_type = self.node_type_var.get().strip()
-        raw_params = self.node_params_entry.get().strip()
 
         if not node_id or not node_type:
             messagebox.showerror("Node", "Node ID and type are required")
             return
 
-        params = {}
-        if raw_params:
-            try:
-                params = json.loads(raw_params)
-            except json.JSONDecodeError as exc:
-                messagebox.showerror("Node", f"Params JSON error: {exc}")
-                return
+        try:
+            params = self._params_from_form(node_type)
+        except ValueError as exc:
+            messagebox.showerror("Node", str(exc))
+            return
 
         self._sync_vars_to_chart()
         errors = self._validate_node_params(node_type, params, chart.get("variables", []))
@@ -291,12 +346,14 @@ class FlowchartEditor(tk.Tk):
             if node["id"] == node_id:
                 node["type"] = node_type
                 node["params"] = params
+                self._selected_node_id = node_id
                 self._refresh_nodes()
                 return
 
         node = {"id": node_id, "type": node_type, "params": params}
         self._assign_node_position(node, chart)
         chart["nodes"].append(node)
+        self._selected_node_id = node_id
         self._refresh_nodes()
 
     def _remove_node(self) -> None:
@@ -311,9 +368,11 @@ class FlowchartEditor(tk.Tk):
         node_id = chart["nodes"][index]["id"]
         chart["nodes"] = [n for n in chart["nodes"] if n["id"] != node_id]
         chart["edges"] = [e for e in chart["edges"] if e["from"] != node_id and e["to"] != node_id]
+        self._selected_node_id = None
         self._refresh_nodes()
         self._refresh_edges()
         self._render_canvas()
+        self._clear_node_form()
 
     def _add_edge(self) -> None:
         chart = self._current_flowchart()
@@ -341,7 +400,6 @@ class FlowchartEditor(tk.Tk):
         if not chart:
             messagebox.showerror("Edge", "Select a flowchart first")
             return
-        self._sync_vars_to_chart()
         selection = self.edges_list.curselection()
         if not selection:
             return
@@ -440,7 +498,9 @@ class FlowchartEditor(tk.Tk):
             x, y = self._node_center(node)
             w = 120
             h = 50
-            rect = self.canvas.create_rectangle(x - w / 2, y - h / 2, x + w / 2, y + h / 2, fill="#f2f2f2")
+            rect = self.canvas.create_rectangle(
+                x - w / 2, y - h / 2, x + w / 2, y + h / 2, fill="#f2f2f2"
+            )
             text = self.canvas.create_text(x, y, text=f"{node['id']}\n{node['type']}")
             self._canvas_nodes[node["id"]] = (rect, text)
 
@@ -503,7 +563,138 @@ class FlowchartEditor(tk.Tk):
                 self.nodes_list.selection_clear(0, tk.END)
                 self.nodes_list.selection_set(idx)
                 self.nodes_list.see(idx)
+                self._on_select_node()
                 return
+
+    def _reselect_node(self) -> None:
+        if not self._selected_node_id:
+            return
+        self._select_node_in_list(self._selected_node_id)
+
+    def _on_select_node(self, _event=None) -> None:
+        chart = self._current_flowchart()
+        if not chart:
+            return
+        selection = self.nodes_list.curselection()
+        if not selection:
+            return
+        node = chart["nodes"][selection[0]]
+        self._selected_node_id = node.get("id")
+        self.node_id_entry.delete(0, tk.END)
+        self.node_id_entry.insert(0, node.get("id", ""))
+        self.node_type_var.set(node.get("type", ""))
+        self._sync_var_options(chart)
+        self._fill_form_from_params(node.get("type", ""), node.get("params") or {})
+
+    def _sync_var_options(self, chart: Dict) -> None:
+        variables = chart.get("variables", [])
+        for combo in (
+            self.param_dst_combo,
+            self.param_src_combo,
+            self.param_left_combo,
+        ):
+            combo["values"] = variables
+
+    def _clear_node_form(self) -> None:
+        self.node_id_entry.delete(0, tk.END)
+        self.node_type_var.set("")
+        self.param_dst_var.set("")
+        self.param_src_var.set("")
+        self.param_const_var.set("")
+        self.param_op_var.set("")
+        self.param_left_var.set("")
+        self.param_right_var.set("")
+        self._update_param_form("")
+
+    def _params_from_form(self, node_type: str) -> Dict:
+        if node_type == "ASSIGN_VAR_VAR":
+            return {"dst": self.param_dst_var.get(), "src": self.param_src_var.get()}
+        if node_type == "ASSIGN_VAR_CONST":
+            value = self._parse_required_int(self.param_const_var.get(), "const")
+            return {"dst": self.param_dst_var.get(), "value": value}
+        if node_type == "INPUT":
+            return {"dst": self.param_dst_var.get()}
+        if node_type == "PRINT":
+            return {"src": self.param_src_var.get()}
+        if node_type == "BRANCH":
+            value = self._parse_required_int(self.param_right_var.get(), "right")
+            return {
+                "left": self.param_left_var.get(),
+                "op": self.param_op_var.get(),
+                "right": value,
+            }
+        return {}
+
+    def _fill_form_from_params(self, node_type: str, params: Dict) -> None:
+        self._update_param_form(node_type)
+        if node_type == "ASSIGN_VAR_VAR":
+            self.param_dst_var.set(params.get("dst", ""))
+            self.param_src_var.set(params.get("src", ""))
+        elif node_type == "ASSIGN_VAR_CONST":
+            self.param_dst_var.set(params.get("dst", ""))
+            self.param_const_var.set(str(params.get("value", "")))
+        elif node_type == "INPUT":
+            self.param_dst_var.set(params.get("dst", ""))
+        elif node_type == "PRINT":
+            self.param_src_var.set(params.get("src", ""))
+        elif node_type == "BRANCH":
+            self.param_left_var.set(params.get("left", ""))
+            self.param_op_var.set(params.get("op", ""))
+            self.param_right_var.set(str(params.get("right", "")))
+
+    def _on_node_type_change(self, _event=None) -> None:
+        self._update_param_form(self.node_type_var.get())
+
+    def _update_param_form(self, node_type: str) -> None:
+        def set_visible(label, widget, visible: bool) -> None:
+            if visible:
+                label.grid()
+                widget.grid()
+                widget.configure(state="normal")
+            else:
+                label.grid_remove()
+                widget.grid_remove()
+                widget.configure(state="disabled")
+
+        set_visible(
+            self.param_dst_label,
+            self.param_dst_combo,
+            node_type in {"ASSIGN_VAR_VAR", "ASSIGN_VAR_CONST", "INPUT"},
+        )
+        set_visible(
+            self.param_src_label,
+            self.param_src_combo,
+            node_type in {"ASSIGN_VAR_VAR", "PRINT"},
+        )
+        set_visible(
+            self.param_const_label,
+            self.param_const_entry,
+            node_type == "ASSIGN_VAR_CONST",
+        )
+        set_visible(
+            self.param_op_label,
+            self.param_op_combo,
+            node_type == "BRANCH",
+        )
+        set_visible(
+            self.param_left_label,
+            self.param_left_combo,
+            node_type == "BRANCH",
+        )
+        set_visible(
+            self.param_right_label,
+            self.param_right_entry,
+            node_type == "BRANCH",
+        )
+
+    def _parse_required_int(self, raw: str, field: str) -> int:
+        raw = raw.strip()
+        if raw == "":
+            raise ValueError(f"Field {field} must be an integer")
+        try:
+            return int(raw)
+        except ValueError as exc:
+            raise ValueError(f"Field {field} must be an integer") from exc
 
 
 def run_gui() -> None:

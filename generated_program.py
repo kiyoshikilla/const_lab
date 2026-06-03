@@ -1,5 +1,4 @@
 # Auto-generated from flowcharts.json
-# Do not edit manually unless you know what you are doing.
 
 import json
 import threading
